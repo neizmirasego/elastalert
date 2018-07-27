@@ -111,7 +111,7 @@ class ElastAlerter():
             )
 
         if self.verbose or self.debug:
-            elastalert_logger.setLevel(logging.INFO)
+            elastalert_logger.setLevel(logging.DEBUG)
 
         if self.debug:
             elastalert_logger.info(
@@ -315,7 +315,6 @@ class ElastAlerter():
 
         :return: A list of processed _source dictionaries.
         """
-
         processed_hits = []
         for hit in hits:
             # Merge fields and _source
@@ -359,7 +358,6 @@ class ElastAlerter():
         :param endtime: The latest time to query.
         :return: A list of hits, bounded by rule['max_query_size'] (or self.max_query_size).
         """
-
         query = self.get_query(
             rule['filter'],
             starttime,
@@ -390,7 +388,6 @@ class ElastAlerter():
                     **extra_args
                 )
                 self.total_hits = int(res['hits']['total'])
-            logging.debug(str(res))
         except ElasticsearchException as e:
             # Elasticsearch sometimes gives us GIGANTIC error messages
             # (so big that they will fill the entire terminal buffer)
@@ -681,14 +678,17 @@ class ElastAlerter():
         # This means we are starting fresh
         if 'starttime' not in rule:
             if not rule.get('scan_entire_timeframe'):
-                # Try to get the last run from Elasticsearch
-                last_run_end = self.get_starttime(rule)
-                if last_run_end:
-                    rule['starttime'] = last_run_end
-                    self.adjust_start_time_for_overlapping_agg_query(rule)
-                    self.adjust_start_time_for_interval_sync(rule, endtime)
-                    rule['minimum_starttime'] = rule['starttime']
-                    return None
+                if not rule.get('spike_height'):
+                    # Try to get the last run from Elasticsearch
+                    last_run_end = self.get_starttime(rule)
+                    if last_run_end:
+                        rule['starttime'] = last_run_end
+                        self.adjust_start_time_for_overlapping_agg_query(rule)
+                        self.adjust_start_time_for_interval_sync(rule, endtime)
+                        rule['minimum_starttime'] = rule['starttime']
+                        return None
+                else:
+                    rule['starttime'] = endtime - rule['timeframe'] + rule['ref_timeframe']
 
         # Use buffer for normal queries, or run_every increments otherwise
         # or, if scan_entire_timeframe, use timeframe
@@ -816,7 +816,6 @@ class ElastAlerter():
 
     def run_rule(self, rule, endtime, starttime=None):
         """ Run a rule for a given time period, including querying and alerting on results.
-
         :param rule: The rule configuration.
         :param starttime: The earliest timestamp to query.
         :param endtime: The latest timestamp to query.

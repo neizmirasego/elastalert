@@ -382,6 +382,7 @@ class SpikeRule(RuleType):
     def __init__(self, *args):
         super(SpikeRule, self).__init__(*args)
         self.timeframe = self.rules['timeframe']
+        self.ref_timeframe = self.rules.get('ref_timeframe', self.rules['timeframe'])
 
         self.ref_windows = {}
         self.cur_windows = {}
@@ -412,6 +413,7 @@ class SpikeRule(RuleType):
                 self.handle_event(event, count, key)
 
     def add_data(self, data):
+        elastalert_logger.info("add_data called")
         for event in data:
             qk = self.rules.get('query_key', 'all')
             if qk != 'all':
@@ -435,18 +437,16 @@ class SpikeRule(RuleType):
         # Reset the state and prevent alerts until windows filled again
         self.ref_windows[qk].clear()
         self.first_event.pop(qk)
-        self.skip_checks[qk] = event[self.ts_field] + self.rules['timeframe'] * 2
+        self.skip_checks[qk] = event[self.ts_field] + self.ref_timeframe + self.timeframe
 
     def handle_event(self, event, count, qk='all'):
         self.first_event.setdefault(qk, event)
-
-        self.ref_windows.setdefault(qk, EventWindow(self.timeframe, getTimestamp=self.get_ts))
+        self.ref_windows.setdefault(qk, EventWindow(self.ref_timeframe, getTimestamp=self.get_ts))
         self.cur_windows.setdefault(qk, EventWindow(self.timeframe, self.ref_windows[qk].append, self.get_ts))
-
         self.cur_windows[qk].append((event, count))
 
         # Don't alert if ref window has not yet been filled for this key AND
-        if event[self.ts_field] - self.first_event[qk][self.ts_field] < self.rules['timeframe'] * 2:
+        if event[self.ts_field] - self.first_event[qk][self.ts_field] <= self.ref_timeframe + self.timeframe:
             # ElastAlert has not been running long enough for any alerts OR
             if not self.ref_window_filled_once:
                 return
@@ -458,7 +458,6 @@ class SpikeRule(RuleType):
                 return
         else:
             self.ref_window_filled_once = True
-
         if self.field_value is not None:
             if self.find_matches(self.ref_windows[qk].mean(), self.cur_windows[qk].mean()):
                 # skip over placeholder events
@@ -466,7 +465,8 @@ class SpikeRule(RuleType):
                     if "placeholder" not in match:
                         break
                 self.add_match(match, qk)
-                self.clear_windows(qk, match)
+                if not self.rules.get('self.alert_on_existing_data'):
+                    self.clear_windows(qk, match)
         else:
             if self.find_matches(self.ref_windows[qk].count(), self.cur_windows[qk].count()):
                 # skip over placeholder events which have count=0
@@ -475,7 +475,8 @@ class SpikeRule(RuleType):
                         break
 
                 self.add_match(match, qk)
-                self.clear_windows(qk, match)
+                if not self.rules.get('self.alert_on_existing_data'):
+                    self.clear_windows(qk, match)
 
     def add_match(self, match, qk):
         extra_info = {}
@@ -495,11 +496,8 @@ class SpikeRule(RuleType):
     def find_matches(self, ref, cur):
         """ Determines if an event spike or dip happening. """
         # Apply threshold limits
-        if self.field_value is None:
-            if (cur < self.rules.get('threshold_cur', 0) or
-                    ref < self.rules.get('threshold_ref', 0)):
-                return False
-        elif ref is None or ref == 0 or cur is None or cur == 0:
+        if (cur < self.rules.get('threshold_cur', 0) or
+                ref < self.rules.get('threshold_ref', 0)):
             return False
 
         spike_up, spike_down = False, False

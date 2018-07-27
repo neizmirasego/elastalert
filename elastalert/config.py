@@ -172,6 +172,8 @@ def load_options(rule, conf, filename, args=None):
         # Set all time based parameters
         if 'timeframe' in rule:
             rule['timeframe'] = datetime.timedelta(**rule['timeframe'])
+        if 'ref_timeframe' in rule:
+            rule['ref_timeframe'] = datetime.timedelta(**rule['ref_timeframe'])
         if 'realert' in rule:
             rule['realert'] = datetime.timedelta(**rule['realert'])
         else:
