@@ -465,7 +465,7 @@ class SpikeRule(RuleType):
                     if "placeholder" not in match:
                         break
                 self.add_match(match, qk)
-                if not self.rules.get('self.alert_on_existing_data'):
+                if not self.rules.get('alert_on_existing_data'):
                     self.clear_windows(qk, match)
         else:
             if self.find_matches(self.ref_windows[qk].count(), self.cur_windows[qk].count()):
@@ -475,7 +475,7 @@ class SpikeRule(RuleType):
                         break
 
                 self.add_match(match, qk)
-                if not self.rules.get('self.alert_on_existing_data'):
+                if not self.rules.get('alert_on_existing_data'):
                     self.clear_windows(qk, match)
 
     def add_match(self, match, qk):
