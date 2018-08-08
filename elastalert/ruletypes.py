@@ -513,18 +513,13 @@ class SpikeRule(RuleType):
 
     def get_match_str(self, match):
         if self.field_value is None:
-            message = 'An abnormal number (%d) of events occurred around %s.\n' % (
-                match['spike_count'],
-                pretty_ts(match[self.rules['timestamp_field']], self.rules.get('use_local_time'))
-            )
+            message = 'An abnormal number (%d) of events occurred\n' % (
+                match['spike_count'])
             message += 'Preceding that time, there were only %d events within %s\n\n' % (match['reference_count'], self.rules['timeframe'])
         else:
-            message = 'An abnormal average value (%.2f) of field \'%s\' occurred around %s.\n' % (
+            message = 'An abnormal average value (%.2f) of field \'%s\' occurred\n' % (
                 match['spike_count'],
-                self.field_value,
-                pretty_ts(match[self.rules['timestamp_field']],
-                          self.rules.get('use_local_time'))
-            )
+                self.field_value)
             message += 'Preceding that time, the field had an average value of (%.2f) within %s\n\n' % (
                 match['reference_count'], self.rules['timeframe'])
         return message
