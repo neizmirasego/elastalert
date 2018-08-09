@@ -76,7 +76,6 @@ oneOf:
       spike_height: {type: number}
       spike_type: {enum: ["up", "down", "both"]}
       timeframe: *timeframe
-      ref_timeframe: *timeframe
       use_count_query: {type: boolean}
       doc_type: {type: string}
       use_terms_query: {type: boolean}

@@ -382,7 +382,6 @@ class SpikeRule(RuleType):
     def __init__(self, *args):
         super(SpikeRule, self).__init__(*args)
         self.timeframe = self.rules['timeframe']
-        self.ref_timeframe = self.rules.get('ref_timeframe', self.rules['timeframe'])
 
         self.ref_windows = {}
         self.cur_windows = {}
@@ -413,7 +412,6 @@ class SpikeRule(RuleType):
                 self.handle_event(event, count, key)
 
     def add_data(self, data):
-        elastalert_logger.info("add_data called")
         for event in data:
             qk = self.rules.get('query_key', 'all')
             if qk != 'all':
@@ -437,16 +435,16 @@ class SpikeRule(RuleType):
         # Reset the state and prevent alerts until windows filled again
         self.ref_windows[qk].clear()
         self.first_event.pop(qk)
-        self.skip_checks[qk] = event[self.ts_field] + self.ref_timeframe + self.timeframe
+        self.skip_checks[qk] = event[self.ts_field] + self.rules['timeframe'] * 2
 
     def handle_event(self, event, count, qk='all'):
         self.first_event.setdefault(qk, event)
-        self.ref_windows.setdefault(qk, EventWindow(self.ref_timeframe, getTimestamp=self.get_ts))
+        self.ref_windows.setdefault(qk, EventWindow(self.timeframe, getTimestamp=self.get_ts))
         self.cur_windows.setdefault(qk, EventWindow(self.timeframe, self.ref_windows[qk].append, self.get_ts))
         self.cur_windows[qk].append((event, count))
 
         # Don't alert if ref window has not yet been filled for this key AND
-        if event[self.ts_field] - self.first_event[qk][self.ts_field] <= self.ref_timeframe + self.timeframe:
+        if event[self.ts_field] - self.first_event[qk][self.ts_field] <= self.rules['timeframe'] * 2:
             # ElastAlert has not been running long enough for any alerts OR
             if not self.ref_window_filled_once:
                 return
